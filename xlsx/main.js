@@ -10,11 +10,14 @@ const fs = require("fs");
 
 let config = {};
 
-let start = '(function (root) {\n\t';
+const ES5_CONTEXT_START = '(function (root) {';
+const ES5_CONTEXT_END = '\n})(Game);';
 
-let end = '})(Game);';
+const DEF_JSON_PATH = './models/';
+const DEF_JS_PATH = './models/';
+const DEF_JS_FILE_NAME = 'config';
 
-let fileContext = start;
+let jsFileTable = {};
 
 fs.readdirSync(__dirname + '/config/').filter(function (file) {
 	return (file.indexOf(".") !== 0) && (file.split('.')[1] === "xlsx");
@@ -37,15 +40,25 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 			console.log(sheet.name +' context is null');
 			return ;
 		}
+		let sheetName = sheet.name;
+
 
 		let classInfo = sheetData[0];
 
 		let data = null;
 		let name = null;
 		let className = null;
-		let jsonName = null;
+		let jsonFileName = sheetName;
 
 		let classType = null;
+
+
+		let jsonPath = DEF_JSON_PATH;
+
+		let jsPath = DEF_JS_PATH;
+		let jsFileName = DEF_JS_FILE_NAME;
+		let jsEnv = 'ES5';
+
 		for (let i = 0; i < classInfo.length; i++) {
 			let context = classInfo[i];
 			if (!context || context.indexOf("=") === 0) {
@@ -67,9 +80,40 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 				className = value;
 			}
 
-			if (field === 'jsonName'){
-				jsonName = value;
+			if (field === 'jsonFileName'){
+				jsonFileName = value;
 			}
+
+			if (field === 'jsEnv'){
+				jsEnv = value;
+			}
+
+			if (field === 'jsPath'){
+				jsPath = value;
+			}
+
+			if (field === 'jsFileName'){
+				jsFileName = value;
+			}
+
+			if (field === 'jsonPath'){
+				jsonPath = value;
+			}
+		}
+
+		if (jsEnv !== 'ES5' && jsEnv !== 'ES6'){
+			console.log(' jsEnv is not ES5 or ES6');
+			return;
+		}
+
+		jsPath = jsPath + jsFileName + '.js';
+		let jsFileInfo = jsFileTable[jsPath];
+		if (!jsFileInfo){
+			jsFileInfo = {
+				context : '',
+				env : jsEnv
+			};
+			jsFileTable[jsPath] = jsFileInfo;
 		}
 
 		if (classType === 'array' || classType === 'Array' ){
@@ -85,7 +129,6 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 
 		name = name || fileName;
 		className = className || name;
-		jsonName = jsonName || name;
 
 		let index = 0;
 		let dateTypeArray = null;
@@ -138,7 +181,7 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 				}
 
 				if (type === 't') {
-					let contextObj = eval("(" + context + ")");
+					let contextObj = eval("ret = " + context + ';');
 					context = JSON.stringify(contextObj);
 					info[key] = JSON.parse(context);
 				}
@@ -159,33 +202,63 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 						break
 					}
 					let contextTable = context.split('_');
-					let key = contextTable[0];
-					let type = contextTable[1];
+					let type = contextTable[contextTable.length - 1];
+					// let key = contextTable[0];
+					let key = context.slice(0,-(type.length + 1) );
 
 					dateTypeArray.push({key: key, type: type});
 				}
 			}
 
-
 		}
 
 		config[className] = data;
 
+		// data = {
+		// 	'ss':'ss',
+		// };
+
 		let jsonString = JSON.stringify(data, null, 4);
 
-		fileContext += 'root.' + className + ' = ' + jsonString + ';\n\t';
+		// fileContext += jsContext
 
-		fs.writeFile('./models/' + jsonName + '.json', jsonString, function (err) {
-			console.log('err = ', err);
+		let fileContext = '\n\troot.' + className + ' = ' + jsonString + ';';
+
+		// if (data instanceof Array){
+		// 	fileContext = fileContext.slice(0,-2) + '\n\t];';
+		// }
+		// else if (data instanceof Object){
+		// 	fileContext = fileContext.slice(0,-2) + '\n\t};';
+		// }
+
+		jsFileInfo.context += fileContext;
+
+		fs.writeFile(jsonPath + jsonFileName + '.json', jsonString, function (err) {
+			if (err){
+				console.log('err = ', err);
+			}
 		});
 	}
 
 });
 
-fileContext += end;
+for (let jsPath in jsFileTable){
+	let jsFileInfo = jsFileTable[jsPath];
+	let fileContext = '';
 
-fs.writeFile('./models/config.js', fileContext, function (err) {
-	console.log('err = ', err);
-});
+	if (jsFileInfo.env === 'ES5'){
+		fileContext = ES5_CONTEXT_START + jsFileInfo.context + ES5_CONTEXT_END;
+	}
+
+	fs.writeFile( jsPath, fileContext , function (err) {
+		if (err){
+			console.log('err = ', err);
+		}
+	});
+}
+
+// fs.writeFile( jsPath + jsFileName + '.js', fileContext, function (err) {
+// 	console.log('err = ', err);
+// });
 
 
