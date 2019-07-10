@@ -13,8 +13,8 @@ let config = {};
 const ES5_CONTEXT_START = '(function (root) {';
 const ES5_CONTEXT_END = '\n})(Game);';
 
-const DEF_JSON_PATH = './models/';
-const DEF_JS_PATH = './models/';
+const DEF_JSON_PATH = './models';
+const DEF_JS_PATH = './models';
 const DEF_JS_FILE_NAME = 'config';
 
 let jsFileTable = {};
@@ -51,7 +51,6 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 		let jsonFileName = sheetName;
 
 		let classType = null;
-
 
 		let jsonPath = DEF_JSON_PATH;
 
@@ -106,7 +105,7 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 			return;
 		}
 
-		jsPath = jsPath + jsFileName + '.js';
+		jsPath = jsPath + '/'+ jsFileName + '.js';
 		let jsFileInfo = jsFileTable[jsPath];
 		if (!jsFileInfo){
 			jsFileInfo = {
@@ -233,7 +232,7 @@ fs.readdirSync(__dirname + '/config/').filter(function (file) {
 
 		jsFileInfo.context += fileContext;
 
-		fs.writeFile(jsonPath + jsonFileName + '.json', jsonString, function (err) {
+		fs.writeFile(jsonPath + '/' + jsonFileName + '.json', jsonString, function (err) {
 			if (err){
 				console.log('err = ', err);
 			}
